@@ -1,8 +1,8 @@
 #####
-## Parser for JSON Hansard output from openparliament.ca
-## Requires Python 3.3
+## Hansard Analysis Package
+## Requires Python 3.3 and BeautifulSoup
 ## tanya.whyte@mail.utoronto.ca
-## 2013-02-16
+## Current 2013-07-23
 ##      parenthansard.py 
 ##      Creates parent Hansard objects
 ##      To do: implement committees

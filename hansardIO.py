@@ -1,8 +1,8 @@
 #####
-## Parser for JSON Hansard output from openparliament.ca
-## Requires Python 3.3
+## Hansard Analysis Package
+## Requires Python 3.3 and BeautifulSoup
 ## tanya.whyte@mail.utoronto.ca
-## 2013-02-16
+## Current 2013-07-23
 ##      hansardIO.py 
 ##      Fetches/writes/loads HansardDict and Hansard files
 ##      To do: separate committee proceedings by committee name
