@@ -1,6 +1,6 @@
 #####
 ## Hansard Analysis Package
-## Requires Python 3.2.5
+## Requires Python 3.2
 ## tanya.whyte@mail.utoronto.ca
 ## Current 2013-07-23
 ## 
@@ -137,9 +137,10 @@ class UKTranslator (object):
         except (OSError, IOError):
             raise HansardImportError("No .pkl file of that name.")
 
-    def ConvertDateToUKParlSess(self, dateStr, parlsess): # not done yet
+    def convertDateToUKParlSess(self, dateStr, parlsess): # TEST ME
         '''Returns either the parliament or the session information for a given date
-        dateStr == yyyy-mm-dd string format, parlsess = Parliament or Session in str format'''
+        dateStr == yyyy-mm-dd string format, parlsess = Parliament or Session in str format
+        Note that we return null if parliament isn't in session at the time (this problem is not handled here)'''
     
         TransFile = self.loadUKTranslationFile()
         workingYear = dateStr[0:4]
@@ -156,35 +157,85 @@ class UKTranslator (object):
 
         if parlsess == "Parliament":
             workingYearList = TransFile['dates'][workingYear]
-            for yearParl in workingYearList: # left off here
-                        
-                    
-                
-            if start <= date <= end:
-                print "in between"
+            if len(workingYearList) == 1: # there is only one parliament in this year, so return it
+                return list(workingYearList[0].keys())[0]
             else:
-                print "No!"
-            
-            
-        elif parlsess == "Session":
-            pass
+                for yearParl in workingYearList: # for dict in list of dicts, each dict has a key of the parliament
+                    for workingParliament in list(yearParl.keys()):
+                        for workingSession in list(yearParl[workingParliament].keys()):
+                            testStart = yearParl[workingParliament][workingSession][0]
+                            testEnd = yearParl[workingParliament][workingSession][1]
+                            if testStart <= workingDateObject <= testEnd:
+                                return workingParliament
+                            else:
+                                pass
+
+        elif parlsess == "Session": ######################### TEST ME
+            workingYearList = TransFile['dates'][workingYear]
+				for yearParl in workingYearList: # for dict in list of dicts, each dict has a key of the parliament
+                    for workingParliament in list(yearParl.keys()):
+                        for workingSession in list(yearParl[workingParliament].keys()):
+                            testStart = yearParl[workingParliament][workingSession][0]
+                            testEnd = yearParl[workingParliament][workingSession][1]
+                            if testStart <= workingDateObject <= testEnd:
+                                return workingSession
+    
         else:
             raise HansardImportError("Invalid--Choose Parliament or Session")
 
-    def ConvertUKName(self, memberName, dateStr, parrid): # not done yet
+    def convertUKName(self, memberName, dateStr, parrid): #################### TEST ME
         '''Returns either the parliament or the session information for a given date
         memberName = "Lastname Firstname", dateStr == yyyy-mm-dd string format, parrid = Party or Riding in str format'''
         
         TransFile = self.loadUKTranslationFile()
+		
+		workingYear = dateStr[0:4]
+        if dateStr[5] == "0":
+            workingMonth = dateStr[6]
+        else:
+            workingMonth = dateStr[5:7]
+        if dateStr[8] == '0':
+            workingDay = dateStr[9]
+        else:
+            workingDay = dateStr[8:10]
+
+        workingDateObject = datetime.date(int(workingYear), int(workingMonth), int(workingDay))
+		
         if parrid == "Party":
-            pass
+            workingNameDict = TransFile['names']
+			try:
+				memberInfo = workingNameDict[memberName]
+				if len(memberInfo) == 1: # only one person with this name; return their info
+					return memberInfo[0]["party"]
+				else: # more than one person with this name (or some kind of duplicate record exists) so check date
+					for personInstance in memberInfo:
+						testStart = personInstance[startDate]
+						testEnd = personInstance[endDate]
+						if testStart <= workingDateObject <= testEnd:
+							return personInstance["party"]
+					
+			except KeyError:
+				raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+			
         elif parrid == "Riding":
-            pass
+			workingNameDict = TransFile['names']
+			try:
+				memberInfo = workingNameDict[memberName]
+				if len(memberInfo) == 1: # only one person with this name; return their info
+					return memberInfo[0]["party"]
+				else: # more than one person with this name (or some kind of duplicate record exists) so check date
+					for personInstance in memberInfo:
+						testStart = personInstance[startDate]
+						testEnd = personInstance[endDate]
+						if testStart <= workingDateObject <= testEnd:
+							return personInstance["riding"]
+							
+			except KeyError:
+				raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+			
+			
         else:
             raise HansardImportError("Invalid--Choose Party or Riding")
-
-
-
 
     
 # HansardImport class
@@ -324,11 +375,27 @@ class HansardImport(object):
                 print ("Skipped existing file.")
             else: # Creates new .pkl file
                 
-                ################ Convert here!
-                
+                # Convert here!
+                workingHansardLog = {}
+				
+				workingHansardLog["parliament"] = self.translator.convertDateToUKParlSess(dateH, "Parliament")
+				workingHansardLog["hansardDate"] = dateH
+				workingHansardLog["hansardID"] = None
+				workingHansardLog["session"] = self.translator.convertDateToUKParlSess(dateH, "Session")
+				workingHansardLog["URL"] = None
+				workingHansardLog["originalURL"] = None
+				
+				# convert statements to JSON-style standard
+				
+				workingStatements = [] 
+				# left off here!!!!!###################################
+				
+				workingHansardLog["statements"] = copy.deepcopy("workingStatements")
+				
+				
                 
                 output = open((os.path.join(os.getcwd(), "data", str(dateH), (str(dateH) + '.pkl'))), 'wb')
-                pickle.dump(myfile, output)
+                pickle.dump(workingHansardLog, output)
                 output.close()
                         
         print(((str(workingFile)) + " files processed."))
@@ -378,8 +445,8 @@ class HansardImport(object):
         except (OSError, IOError):
             raise HansardImportError("No .pkl file of that name.")
 
-    def getTrueFilenames(self, dateH):
-        '''dateH = "yyyy-mm-dd", hansardType = "House" or "Committee"
+    def getTrueFilenames(self, dateH, hansardType=""):
+        '''dateH = "yyyy-mm-dd"
         Returns list of filenames str for use in loadHansardFile
         '''
         try:

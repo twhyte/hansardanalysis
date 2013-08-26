@@ -1,16 +1,17 @@
 #####
 ## Processor for JSON Hansard output from openparliament.ca
-## Requires Python 3.3
+## Requires Python 3.2
 ## tanya.whyte@mail.utoronto.ca
 ## 2013-02-17
 ##      analysis.py 
-##      General analysis classes
+##      General analysis classes for both Canada and UK Hansard
 #####
 
 
 import hansardprocess
 import parenthansard
 import hansardIO
+import UKImport
 import csv
 import os
 import copy
@@ -44,7 +45,7 @@ class IO(object):
             #dictConstruct = {}
             #testList = []
             #testList.append(i)
-            #dictConstruct = dict([("date", i.hansardDate), ("parliament", i.parliament), ("session", i.session), ("oh", len(self.SHMProcess.refineSearch("statement", "oh, oh!", testList)))])
+            #dictConstruct = dict([("date", i.hansardDate), ("parliament", i.parliament), ("session", i.session), ("oh", len(self.AnalysisProcessor.refineSearch("statement", "oh, oh!", testList)))])
             #toCSV.append(dictConstruct)
         #keys = ['date', 'parliament', 'session', 'oh']
         #f = open(filename, 'wb')
@@ -53,13 +54,20 @@ class IO(object):
         #dict_writer.writerows(toCSV)
 
 class Dates(object):
-    def __init__(self, dateStart="1994-01-17", dateEnd="2012-12-31"):
+    def __init__(self, dateStart="1994-01-01", dateEnd="2012-12-31", whichHansard="House"):
+		# whichHansard can be House, Committee, or UK
+		# this might require some debugging
+		
         self.dateStart = dateStart
         self.dateEnd = dateEnd
-        self.SHMProcess = hansardprocess.Processor()
+		self.whichHansard = whichHansard
+        self.AnalysisProcessor = hansardprocess.Processor()
         self.yearsList = ["1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", \
         "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"]
-        self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
+        if whichHansard == "House" or "Committee":
+			self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
+		elif whichHansard=="UK":
+			self.parliamentsList = ["51", "52", "53", "54", "55"]
     
     def NumRecordDays(self, timeFrame):
         '''Return a dict for number of recorded sitting days per year/parliament/session
@@ -72,8 +80,11 @@ class Dates(object):
         daysInSessionPerParliament = {}
         daysInSessionPerSessionPerParliament = {}
         numDays = []
-        IOObject = hansardIO.HansardImport()
-        activeDict = IOObject.loadHansardDict()
+		if self.whichHansard=="House" or "Committee":
+			IOObject = hansardIO.HansardImport()
+		elif self.whichHansard=="UK":
+			IOObject = UKImport.HansardImport()
+		activeDict = IOObject.loadHansardDict()
         originalList = []
         newList = []
         filteredList = []
@@ -93,16 +104,26 @@ class Dates(object):
                       
                 for day in filteredList:
                     try:
-                        for hansardType in ["House"]: # Add committee functionality here
-                            loadName = IOObject.getTrueFilenames(day, hansardType)
-                            for fileName in loadName:
-                                try: 
-                                    hansardDay = IOObject.loadHansardFile(day, fileName)
-                                    if hansardDay["url"][:8] == "/debates": # Checks that the file is not misnamed
-                                        if hansardType == "House":
-                                            houseCount += 1
-                                except hansardIO.HansardImportDateError:
-                                    pass
+						if whichHansard == "House" or "Committee":
+						
+							for hansardType in ["House"]: # Add committee functionality here
+								loadName = IOObject.getTrueFilenames(day, hansardType)
+								for fileName in loadName:
+									try: 
+										hansardDay = IOObject.loadHansardFile(day, fileName)
+										if hansardDay["url"][:8] == "/debates": # Checks that the file is not misnamed
+											if hansardType == "House":
+												houseCount += 1
+									except hansardIO.HansardImportDateError:
+										pass
+						elif whichHansard == "UK":
+							loadName = IOObject.getTrueFilenames(day, hansardType="")
+								for fileName in loadName:
+									try: 
+										hansardDay = IOObject.loadHansardFile(day, fileName)
+										houseCount += 1
+									except hansardIO.HansardImportDateError:
+										pass
                         
                     except hansardIO.HansardImportDateError:
                         pass
@@ -118,58 +139,106 @@ class Dates(object):
                 parliamentsCount = 0
                 for day in newList:
                     try:
-                        for hansardType in ["House"]:
-                            loadName = IOObject.getTrueFilenames(day, hansardType)
-                            for fileName in loadName:
-                                try: 
-                                    hansardDay = IOObject.loadHansardFile(day, fileName)
-                                    if str(hansardDay["parliament"]) == j:
-                                        parliamentsCount += 1
+						if whichHansard == "House" or "Committee":
+
+							for hansardType in ["House"]:
+								loadName = IOObject.getTrueFilenames(day, hansardType)
+								for fileName in loadName:
+									try: 
+										hansardDay = IOObject.loadHansardFile(day, fileName)
+										if str(hansardDay["parliament"]) == j:
+											parliamentsCount += 1
                                 
-                                except hansardIO.HansardImportDateError:
-                                    pass
+									except hansardIO.HansardImportDateError:
+										pass
+										
+						elif whichHansard == "UK":
+							loadName = IOObject.getTrueFilenames(day, hansardType="")
+								for fileName in loadName:
+									try: 
+										hansardDay = IOObject.loadHansardFile(day, fileName)
+										if str(hansardDay["parliament"]) == j:
+											parliamentsCount += 1
+									except hansardIO.HansardImportDateError:
+										pass
                             
                     except hansardIO.HansardImportDateError:
                         pass
+						
                 daysInSessionPerParliament[j] = copy.deepcopy(parliamentsCount)
             return daysInSessionPerParliament
 
         if timeFrame == "session": # inefficient but works
             for j in self.parliamentsList: 
                 print (j)
-                sessionParlHolder = [0, 0, 0]
-                for day in newList:
-                    try:
-                        for hansardType in ["House"]:
-                            loadName = IOObject.getTrueFilenames(day, hansardType)
-                            for fileName in loadName:
-                                try: 
-                                    hansardDay = IOObject.loadHansardFile(day, fileName)
-                                    if str(hansardDay["parliament"]) == j:
-                                        if str(hansardDay["session"]) == "1":
-                                            sessionParlHolder[0]+=1
-                                        elif str(hansardDay["session"]) == "2":
-                                            sessionParlHolder[1]+=1
-                                        elif str(hansardDay["session"]) == "3":
-                                            sessionParlHolder[2]+=1
+				if self.whichHansard == "House" or "Parliament":
+				
+					sessionParlHolder = [0, 0, 0]
+					for day in newList:
+						try:
+							for hansardType in ["House"]:
+								loadName = IOObject.getTrueFilenames(day, hansardType)
+								for fileName in loadName:
+									try: 
+										hansardDay = IOObject.loadHansardFile(day, fileName)
+										if str(hansardDay["parliament"]) == j:
+											if str(hansardDay["session"]) == "1":
+												sessionParlHolder[0]+=1
+											elif str(hansardDay["session"]) == "2":
+												sessionParlHolder[1]+=1
+											elif str(hansardDay["session"]) == "3":
+												sessionParlHolder[2]+=1
                                 
-                                except hansardIO.HansardImportDateError:
-                                    pass
+									except hansardIO.HansardImportDateError:
+										pass
                             
-                    except hansardIO.HansardImportDateError:
-                        pass
-                daysInSessionPerSessionPerParliament[j] = dict([("1", copy.deepcopy(sessionParlHolder[0])), ("2", copy.deepcopy(sessionParlHolder[1])), ("3", copy.deepcopy(sessionParlHolder[2]))])
+						except hansardIO.HansardImportDateError:
+							pass
+					daysInSessionPerSessionPerParliament[j] = dict([("1", copy.deepcopy(sessionParlHolder[0])), ("2", copy.deepcopy(sessionParlHolder[1])), ("3", copy.deepcopy(sessionParlHolder[2]))])
 
-            return daysInSessionPerSessionPerParliament
+					return daysInSessionPerSessionPerParliament
+					
+				 elif self.whichHansard == "UK":
+					sessionParlHolder= [0, 0, 0, 0, 0]
+					for day in newList:
+						try:
+							loadName = IOObject.getTrueFilenames(day, hansardType)
+							for fileName in loadName:
+								try: 
+									hansardDay = IOObject.loadHansardFile(day, fileName)
+									if str(hansardDay["parliament"]) == j:
+										if str(hansardDay["session"]) == "1":
+											sessionParlHolder[0]+=1
+										elif str(hansardDay["session"]) == "2":
+											sessionParlHolder[1]+=1
+										elif str(hansardDay["session"]) == "3":
+											sessionParlHolder[2]+=1
+										elif str(hansardDay["session"]) == "4":
+											sessionParlHolder[3]+=1
+										elif str(hansardDay["session"]) == "5":
+											sessionParlHolder[4]+=1
+                                
+								except hansardIO.HansardImportDateError:
+									pass
+                            
+						except hansardIO.HansardImportDateError:
+							pass
+					daysInSessionPerSessionPerParliament[j] = dict([("1", copy.deepcopy(sessionParlHolder[0])), ("2", copy.deepcopy(sessionParlHolder[1])), ("3", copy.deepcopy(sessionParlHolder[2])), ("4", copy.deepcopy(sessionParlHolder[3]))), ("5", copy.deepcopy(sessionParlHolder[4])))]
+
+					return daysInSessionPerSessionPerParliament
 
 class Plot(object): # Placeholder for generic plotting
-    def __init__(self, dateStart="1994-01-17", dateEnd="2012-12-31"):
+    def __init__(self, dateStart="1994-01-01", dateEnd="2012-12-31", whichHansard="House"):
         self.dateStart = dateStart
         self.dateEnd = dateEnd
-        self.SHMProcess = hansardprocess.Processor()
+        self.AnalysisProcessor = hansardprocess.Processor()
         self.yearsList = ["1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", \
         "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"]
-        self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
+		if whichHansard == "House" or "Committee":
+			self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
+		elif whichHansard=="UK":
+			self.parliamentsList = ["51", "52", "53", "54", "55"]
+
 
 # My analysis
          
@@ -177,7 +246,7 @@ class SHM(object):
     def __init__(self, dateStart="1994-01-17", dateEnd="2012-12-31"):
         self.dateStart = dateStart
         self.dateEnd = dateEnd
-        self.SHMProcess = hansardprocess.Processor()
+        self.AnalysisProcessor = hansardprocess.Processor()
         self.yearsList = ["1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", \
         "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"]
         self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
@@ -192,28 +261,28 @@ class SHM(object):
 
         if v == "oh":
 
-            raws = self.SHMProcess.gatherRange("statement", "oh, oh", self.dateStart, self.dateEnd)
-            raws.extend(self.SHMProcess.gatherRange("statement", "oh! oh", self.dateStart, self.dateEnd))
-            raws.extend(self.SHMProcess.gatherRange("statement", "oh. oh", self.dateStart, self.dateEnd))
-            raws.extend(self.SHMProcess.gatherRange("statement", "oh oh", self.dateStart, self.dateEnd))
+            raws = self.AnalysisProcessor.gatherRange("statement", "oh, oh", self.dateStart, self.dateEnd)
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "oh! oh", self.dateStart, self.dateEnd))
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "oh. oh", self.dateStart, self.dateEnd))
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "oh oh", self.dateStart, self.dateEnd))
 
         elif v == "ah":
             raws = []
             for n in ["shame", "withdraw", "liar", "disgrace", "ah, ah", "ah. ah", "ah! ah", "order"]:  
-                raws.extend(self.SHMProcess.gatherRange("statement", n, self.dateStart, self.dateEnd))
+                raws.extend(self.AnalysisProcessor.gatherRange("statement", n, self.dateStart, self.dateEnd))
 
         elif v == "hear":
 
-            raws = self.SHMProcess.gatherRange("statement", "hear, hear", self.dateStart, self.dateEnd)
-            raws.extend(self.SHMProcess.gatherRange("statement", "hear! hear", self.dateStart, self.dateEnd))
-            raws.extend(self.SHMProcess.gatherRange("statement", "hear. hear", self.dateStart, self.dateEnd))
+            raws = self.AnalysisProcessor.gatherRange("statement", "hear, hear", self.dateStart, self.dateEnd)
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "hear! hear", self.dateStart, self.dateEnd))
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "hear. hear", self.dateStart, self.dateEnd))
 
         elif v == "all":
             origRaws = []
             raws = []
             valids = TextAnalysisProcess.findSHMStatements()
             print ("SHMData.All:  Valids loaded ("+ (str(len(valids)))+")")
-            origRaws.extend(self.SHMProcess.gatherRange("attribution", "Some hon.", self.dateStart, self.dateEnd))
+            origRaws.extend(self.AnalysisProcessor.gatherRange("attribution", "Some hon.", self.dateStart, self.dateEnd))
             for instance in origRaws:
                 for goodWord in valids:
                     if goodWord == instance.getData("statement"):
@@ -312,7 +381,7 @@ class SHM(object):
         '''
         q = Dates()
         recordsPerSession = q.NumRecordDays("session")
-        raws = self.SHMProcess.gatherRange("statement", "", self.dateStart, self.dateEnd)
+        raws = self.AnalysisProcessor.gatherRange("statement", "", self.dateStart, self.dateEnd)
 
         print ("Data loaded.  Processing.")
 
@@ -341,7 +410,7 @@ class SHM(object):
         '''
         q = Dates()
         recordsPerYear = q.NumRecordDays("year")
-        raws = self.SHMProcess.gatherRange("statement", "", self.dateStart, self.dateEnd)
+        raws = self.AnalysisProcessor.gatherRange("statement", "", self.dateStart, self.dateEnd)
 
         print ("Statements data loaded.  Processing.")
 
@@ -369,7 +438,7 @@ class SHM(object):
         '''
         q = Dates()
         recordsPerParliament = q.NumRecordDays("parliament")
-        raws = self.SHMProcess.gatherRange("statement", "", self.dateStart, self.dateEnd)
+        raws = self.AnalysisProcessor.gatherRange("statement", "", self.dateStart, self.dateEnd)
 
         print ("Data loaded.  Processing.")
 
@@ -579,7 +648,7 @@ class Speaker(object):
     def __init__(self, dateStart="1994-01-17", dateEnd="2012-12-31"):
         self.dateStart = dateStart
         self.dateEnd = dateEnd
-        self.SHMProcess = hansardprocess.Processor()
+        self.AnalysisProcessor = hansardprocess.Processor()
         self.yearsList = ["1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", \
         "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"]
         self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
@@ -596,8 +665,8 @@ class Speaker(object):
 
             
             listCleaned = []
-            raws = self.SHMProcess.gatherRange("statement", "Order, ", self.dateStart, self.dateEnd, cs = "True")
-            raws.extend(self.SHMProcess.gatherRange("statement", "Order. ", self.dateStart, self.dateEnd, cs = "True"))
+            raws = self.AnalysisProcessor.gatherRange("statement", "Order, ", self.dateStart, self.dateEnd, cs = "True")
+            raws.extend(self.AnalysisProcessor.gatherRange("statement", "Order. ", self.dateStart, self.dateEnd, cs = "True"))
 
             for i in raws:
                 if "Standing Order" in i.getData("statement"):
@@ -640,7 +709,7 @@ class Speaker(object):
         '''
         q = Dates()
         recordsPerYear = q.NumRecordDays("year")
-        raws = self.SHMProcess.gatherRange("statement", "", self.dateStart, self.dateEnd)
+        raws = self.AnalysisProcessor.gatherRange("statement", "", self.dateStart, self.dateEnd)
 
         print ("Data loaded.  Processing.")
 
@@ -720,11 +789,16 @@ class Speaker(object):
 
     
     
-        
-            
+class standsUp(object):
+	def __init__(self):
+		# write me!
+        pass
                     
                     
             
-            
-            
+class compare(object):
+	def __init__(self):
+		# write me!
+        pass
+
     

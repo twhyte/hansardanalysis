@@ -1,21 +1,26 @@
 #####
 ## Hansard Analysis Package
-## Requires Python 3.3 and BeautifulSoup
+## Requires Python 3.2
 ## tanya.whyte@mail.utoronto.ca
 ## Current 2013-07-23
 ##      parenthansard.py 
 ##      Creates parent Hansard objects
-##      To do: implement committees
+##      To do: implement Canadian committees
 #####
 
 import hansardIO
+import UKImport
 
 class Hansard(object):
-    '''hansardDate = str format yyyy-mm-dd, hansardType = "House" or "Committee"
-        optional: committee = str of committee name, eg. "Agriculture"
+    '''hansardDate = str format yyyy-mm-dd, hansardType = "House" or "Committee" or "UK"
+        optional: committee = str of committee name, eg. "Agriculture", not implemented
     '''
     def __init__(self, hansardDate, hansardType = "House", committee = ""): 
-        self.IOObject = hansardIO.HansardImport()
+        if hansardType == "House" or "Committee":
+			self.IOObject = hansardIO.HansardImport()
+		else:
+			self.IOObject = UKImport.HansardImport()
+		
         self.hansardDate = hansardDate
         self.hansardType = hansardType
         self.committee = "" # committees not implemented!

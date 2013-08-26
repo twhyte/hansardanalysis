@@ -1,6 +1,6 @@
 #####
 ## Hansard Analysis Package
-## Requires Python 3.3 and BeautifulSoup
+## Requires Python 3.2
 ## tanya.whyte@mail.utoronto.ca
 ## Current 2013-07-23
 ##      hansardprocess.py
