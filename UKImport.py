@@ -16,7 +16,9 @@ import datetime
 import copy
 import time
 import datetime
+import re
 from toJSON import parseXML
+
 
 # Error definitions
 
@@ -36,6 +38,24 @@ class UKTranslator (object):
     def __init__(self):
         pass
 
+    def dateObjectifier(self, dateStr):
+        '''Converts a yyyy-mm-dd to a datetime.date object'''
+
+        workingYear = dateStr[0:4]
+        if dateStr[5] == "0":
+            workingMonth = dateStr[6]
+        else:
+            workingMonth = dateStr[5:7]
+            
+        if dateStr[8] == '0':
+            workingDay = dateStr[9]
+        else:
+            workingDay = dateStr[8:10]
+
+        workingDateObject = datetime.date(int(workingYear), int(workingMonth), int(workingDay))
+        return workingDateObject
+
+        
     def makeUKTranslationFile(self):
         '''Creates and writes a file UKTranslationData.pkl
         Contains parliament and session data, politicians, etc.
@@ -80,6 +100,7 @@ class UKTranslator (object):
             raise HansardImportError("No all-members.xml file present.")
 
         working=k["publicwhip"]["member"]
+        print(len(working))
 
         for member in working:
             endDate = member["todate"]
@@ -92,29 +113,30 @@ class UKTranslator (object):
                 lastName = member["lastname"]
                 fullName = firstName + " " + lastName
                 riding = member["constituency"]
+                memberID = member["id"]
                 party = member["party"]
                 startDate = member["fromdate"]
 
-                if fullName in namesDict:
+                if memberID in namesDict:
                     # A person with this name already exists--check to see if we have a duplicate
                     # We assume that there will be no two people with the same name in the same riding who aren't duplicates
-                    #####This doesn't work properly--I'll leave duplicates in for the moment#####
+                    # This doesn't work properly, but since these only show up in very old data it's fine for now
                     
-                    for listMember in namesDict[fullName]:
+                    for listMember in namesDict[memberID]:
                         if riding in listMember:
                             pass
                             # this person seems to be a duplicate
                         else:
                             # this person is a new member with a shared name but different riding -- add them
-                            ridingDict = {"fullName":fullName, "firstName":firstName, "lastName":lastName, "riding":riding, "party":party, "startDate":startDate, "endDate":endDate}
-                            namesDict[fullName].append({riding:copy.deepcopy(ridingDict)})
+                            ridingDict = {"fullName":fullName, "memberID": memberID, "firstName":firstName, "lastName":lastName, "riding":riding, "party":party, "startDate":startDate, "endDate":endDate}
+                            namesDict[memberID].append({riding:copy.deepcopy(ridingDict)})
                             print (fullName+" has another instance")
                         
                 else:
                     # This fullname doesn't exist yet, create it
-                    ridingDict = {"fullName":fullName, "firstName":firstName, "lastName":lastName, "riding":riding, "party":party, "startDate":startDate, "endDate":endDate}
-                    print ("Added" + " " + fullName)
-                    namesDict[fullName] = [{riding:copy.deepcopy(ridingDict)}]
+                    ridingDict = {"fullName":fullName, "firstName":firstName, "memberID": memberID, "lastName":lastName, "riding":riding, "party":party, "startDate":startDate, "endDate":endDate}
+                    print ("Added" + " " + memberID)
+                    namesDict[memberID] = [{riding:copy.deepcopy(ridingDict)}]
   
         # "parliamentData" is a placeholder for anything else that needs to be added in future
 
@@ -137,7 +159,7 @@ class UKTranslator (object):
         except (OSError, IOError):
             raise HansardImportError("No .pkl file of that name.")
 
-    def convertDateToUKParlSess(self, dateStr, parlsess): # TEST ME
+    def convertDateToUKParlSess(self, dateStr, parlsess):
         '''Returns either the parliament or the session information for a given date
         dateStr == yyyy-mm-dd string format, parlsess = Parliament or Session in str format
         Note that we return null if parliament isn't in session at the time (this problem is not handled here)'''
@@ -170,80 +192,104 @@ class UKTranslator (object):
                             else:
                                 pass
 
-        elif parlsess == "Session": ######################### TEST ME
+        elif parlsess == "Session": 
             workingYearList = TransFile['dates'][workingYear]
-				for yearParl in workingYearList: # for dict in list of dicts, each dict has a key of the parliament
-                    for workingParliament in list(yearParl.keys()):
-                        for workingSession in list(yearParl[workingParliament].keys()):
-                            testStart = yearParl[workingParliament][workingSession][0]
-                            testEnd = yearParl[workingParliament][workingSession][1]
-                            if testStart <= workingDateObject <= testEnd:
-                                return workingSession
+            for yearParl in workingYearList:  # for dict in list of dicts, each dict has a key of the parliament
+                for workingParliament in list(yearParl.keys()):
+                    for workingSession in list(yearParl[workingParliament].keys()):
+                        testStart = yearParl[workingParliament][workingSession][0]
+                        testEnd = yearParl[workingParliament][workingSession][1]
+                        if testStart <= workingDateObject <= testEnd:
+                            return workingSession
     
         else:
             raise HansardImportError("Invalid--Choose Parliament or Session")
 
-    def convertUKName(self, memberName, dateStr, parrid): #################### TEST ME
-        '''Returns either the parliament or the session information for a given date
-        memberName = "Lastname Firstname", dateStr == yyyy-mm-dd string format, parrid = Party or Riding in str format'''
+    def convertUKName(self, dateStr, memberID, parrid):
+        '''Returns either the party or riding information for a given date
+        memberID is a string, dateStr == yyyy-mm-dd string format, parrid = Party or Riding or Fullname in str format
+        Returns None if they weren't in Parliament on dateStr
+        '''
         
         TransFile = self.loadUKTranslationFile()
-		
-		workingYear = dateStr[0:4]
+        workingYear = dateStr[0:4]
         if dateStr[5] == "0":
             workingMonth = dateStr[6]
         else:
             workingMonth = dateStr[5:7]
+            
         if dateStr[8] == '0':
             workingDay = dateStr[9]
         else:
             workingDay = dateStr[8:10]
 
         workingDateObject = datetime.date(int(workingYear), int(workingMonth), int(workingDay))
-		
+
+        if memberID == "unknown":
+            return "unknown"
+
         if parrid == "Party":
             workingNameDict = TransFile['names']
-			try:
-				memberInfo = workingNameDict[memberName]
-				if len(memberInfo) == 1: # only one person with this name; return their info
-					return memberInfo[0]["party"]
-				else: # more than one person with this name (or some kind of duplicate record exists) so check date
-					for personInstance in memberInfo:
-						testStart = personInstance[startDate]
-						testEnd = personInstance[endDate]
-						if testStart <= workingDateObject <= testEnd:
-							return personInstance["party"]
-					
-			except KeyError:
-				raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+            try:
+                memberInfo = workingNameDict[memberID]
+                if len(memberInfo) == 1: # only one person with this ID; return their info
+                    return memberInfo[0][(list(memberInfo[0].keys())[0])]["party"]
+                
+                else: # more than one person with this name (or some kind of duplicate record exists) so check date
+                    for personInstance in range(len(memberInfo)):
+                        testStart =  self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["startDate"])
+                        testEnd = self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["endDate"])
+
+                        if testStart <= workingDateObject <= testEnd:
+                            return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["party"]
+                        
+            except KeyError:
+                    raise HansardImportError("Invalid--ID Doesn't Exist in UK Names")
 			
         elif parrid == "Riding":
-			workingNameDict = TransFile['names']
-			try:
-				memberInfo = workingNameDict[memberName]
-				if len(memberInfo) == 1: # only one person with this name; return their info
-					return memberInfo[0]["party"]
-				else: # more than one person with this name (or some kind of duplicate record exists) so check date
-					for personInstance in memberInfo:
-						testStart = personInstance[startDate]
-						testEnd = personInstance[endDate]
-						if testStart <= workingDateObject <= testEnd:
-							return personInstance["riding"]
-							
-			except KeyError:
-				raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+            workingNameDict = TransFile['names']
+            try:
+                memberInfo = workingNameDict[memberID]
+                if len(memberInfo) == 1: # only one person with this name; return their info
+                    return memberInfo[0][(list(memberInfo[0].keys())[0])]["riding"]
+                
+                else: # more than one person with this name (or some kind of duplicate record exists) so check date
+                    for personInstance in range(len(memberInfo)):
+                        testStart =  self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["startDate"])
+                        testEnd = self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["endDate"])
+                        if testStart <= workingDateObject <= testEnd:
+                            return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["riding"]
+                        
+            except KeyError:
+                    raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
 			
-			
-        else:
-            raise HansardImportError("Invalid--Choose Party or Riding")
+        elif parrid == "Fullname":
+            workingNameDict = TransFile['names']
+            try:
+                memberInfo = workingNameDict[memberID]
+                if len(memberInfo) == 1: # only one person with this name; return their info
+                    return memberInfo[0][(list(memberInfo[0].keys())[0])]["fullName"]
+                
+                else: # more than one person with this name (or some kind of duplicate record exists) so check date
+                    for personInstance in range(len(memberInfo)):
+                        testStart =  self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["startDate"])
+                        testEnd = self.dateObjectifier(memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["endDate"])
+                        if testStart <= workingDateObject <= testEnd:
+                            return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["fullName"]
 
+            except KeyError:
+                    raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+        else:
+            raise HansardImportError("Invalid--Choose Party or Riding or Fullname")
+
+        
     
 # HansardImport class
 
 class HansardImport(object):
     def __init__(self):
-        if os.path.exists(os.path.join(os.getcwd(), "data"))==False:
-            os.mkdir(os.path.join(os.getcwd(), "data"))
+        if os.path.exists(os.path.join(os.getcwd(), "data_uk"))==False:
+            os.mkdir(os.path.join(os.getcwd(), "data_uk"))
         else:
             pass
 
@@ -258,6 +304,18 @@ class HansardImport(object):
         soup = BeautifulSoup(untrusted_html)
         safe_html = ''.join(soup.find_all(text=True))
         return safe_html
+
+    def strip_friend(self, text):
+        '''Quick regex hack to remove honfriend class phrase tags so that all speech text is properly processed'''
+    
+        p = re.compile(r'<phrase class="honfriend".*?>.*?>')
+        return p.sub('', text)
+
+    def strip_date(self, text):
+        '''Quick regex hack to remove date class phrase tags so that all speech text is properly processed'''
+    
+        p = re.compile(r'<phrase class="date".*?>.*?>')
+        return p.sub('', text)
 
     def dictify(self, dictString):
         '''Turn UK hansard stripped string into a HansardDict-style dict object'''
@@ -340,16 +398,17 @@ class HansardImport(object):
 
     def convertUKHansardFile(self, dateH, dictfilename="UKDict"):
         ''' dateH = str format yyyy-mm-dd, dictfilename = str local dict file
-        Writes the .pkl file for a valid Hansard date in a folder path Data/yyyy-mm-dd/
+        Writes the .pkl file for a valid Hansard date in a folder path data_uk/yyyy-mm-dd/
         Works with raw xml dump downloaded from ukparse.kforge.net/parldata/scrapedxml/debates/
         Skips over existing files with same path and filename.
+        Note that only select data is converted:  speech text, politician, party, riding, time
         '''
 
         try:
             activeDict # Test if there is already an activeDict loaded
         except:
             if os.path.isfile((dictfilename + '.pkl')):
-                activeDict = self.loadUKDict(dictfilename) # If not, load a UKDict if it exists
+                activeDict = self.loadHansardDict(dictfilename) # If not, load a UKDict if it exists
             else:
                 raise HansardImportError("No dictionary .pkl file of that name.")
 
@@ -363,42 +422,169 @@ class HansardImport(object):
             raise HansardImportDateError("Not a valid date.")
 
         try: # Checks for existing directory for date
-            self.createDir(str(dateH), os.path.join(os.getcwd(), "data"))
+            self.createDir(str(dateH), os.path.join(os.getcwd(), "data_uk"))
         except OSError:
             pass
 
         for validDate in validFiles: # Converts the most recent (ie. correct and up to date) Hansard file to standard format
                                     # Also organizes along same filesystem standard
 
-            if os.path.isfile(os.path.join(os.getcwd(), "data", str(dateH), (str(dateH) + '.pkl'))):
+            if os.path.isfile(os.path.join(os.getcwd(), "data_uk", str(dateH), (str(dateH) + '.pkl'))):
                 # Checks for existing .pkl file
                 print ("Skipped existing file.")
             else: # Creates new .pkl file
                 
                 # Convert here!
-                workingHansardLog = {}
-				
-				workingHansardLog["parliament"] = self.translator.convertDateToUKParlSess(dateH, "Parliament")
-				workingHansardLog["hansardDate"] = dateH
-				workingHansardLog["hansardID"] = None
-				workingHansardLog["session"] = self.translator.convertDateToUKParlSess(dateH, "Session")
-				workingHansardLog["URL"] = None
-				workingHansardLog["originalURL"] = None
-				
-				# convert statements to JSON-style standard
-				
-				workingStatements = [] 
-				# left off here!!!!!###################################
-				
-				workingHansardLog["statements"] = copy.deepcopy("workingStatements")
-				
-				
                 
-                output = open((os.path.join(os.getcwd(), "data", str(dateH), (str(dateH) + '.pkl'))), 'wb')
+                if os.path.isfile((os.path.join(os.getcwd(), "data_uk_raw", "debates"+validDate+".xml"))):
+                    f = (os.path.join(os.getcwd(), "data_uk_raw", "debates"+validDate+".xml"))
+                else:
+                    f = (os.path.join(os.getcwd(), "data_uk_raw", "debates"+validDate+"a"+".xml"))
+                
+                # strip encoding information to make lxml happy
+
+                lines = open(f, 'r', encoding = "iso-8859-1").readlines()
+                lines[0] = '<?xml version="1.0"?>\n'
+                file = open(f, 'w', encoding = "iso-8859-1")
+                for line in lines:
+                    file.write(line)
+                file.close()
+
+##                lines = open(f, 'r').readlines()
+##                stripHolder = []
+##                for q in lines:
+##                    r = q.replace("<i>", "") # strips italics tags
+##                    s = r.replace("</i>", "")
+##                    t = self.strip_friend(s) # strips honfriend class phrases
+##                    stripHolder.append(t)
+##                file = open(f, 'w')
+##                for line in stripHolder: 
+##                    file.write(line)
+                
+                # checks if we read the most current file; if not, finds it
+                
+                j = parseXML(f)
+                k = json.loads(j)
+
+                for scrapeversion in ['', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']:
+                    try:
+                        f = (os.path.join(os.getcwd(), "data_uk_raw", "debates"+validDate+scrapeversion+".xml"))
+                        lines = open(f, 'r', encoding = "iso-8859-1").readlines()
+                        lines[0] = '<?xml version="1.0"?>\n'
+                        stripHolder = []
+                        for q in lines:
+                            r = q.replace("<i>", "") # strips italics tags
+                            s = r.replace("</i>", "")
+                            t = self.strip_friend(s)
+                            u = self.strip_date(t) # strips bad class phrases
+                            stripHolder.append(u)
+                        file = open(f, 'w', encoding = "iso-8859-1")
+                        for line in stripHolder: 
+                            file.write(line)
+                        file.close()
+                        j = parseXML(f)
+                        k = json.loads(j)
+                        if (k["publicwhip"]["latest"]) == "no":
+                            pass
+                        else:
+                            print ("Loaded scrapeversion "+scrapeversion)
+                            break
+                    except IOError:
+                        pass
+                    
+
+
+                # constructs Hansard JSON information
+
+                workingHansardLog = {}
+                workingHansardLog["parliament"] = self.translator.convertDateToUKParlSess(dateH, "Parliament")
+                workingHansardLog["date"] = dateH
+                workingHansardLog["id"] = ""
+                workingHansardLog["session"] = self.translator.convertDateToUKParlSess(dateH, "Session")
+                workingHansardLog["url"] = ""
+                workingHansardLog["original_url"] = ""
+
+                workingStatements = []
+                
+                for speechNumber in range(len(k["publicwhip"]["speech"])):
+                    workingSpeech = {}
+
+                    if "nospeaker" in list(k["publicwhip"]["speech"][speechNumber].keys()) or "speakername" not in list(k["publicwhip"]["speech"][speechNumber].keys()):
+                        pass
+                    
+                    else:
+                
+                        speechTime = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["time"])
+                        workingSpeech["time"] = speechTime
+                        workingSpeech["heading"]= ""
+                        workingSpeech["topic"]= ""
+                        try: 
+                            workingSpeech["url"]= copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["url"])
+                        except KeyError:
+                            workingSpeech["url"]=""
+                        
+                        # politician data
+                        speakerName = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["speakername"])
+                        speakerID =  copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["speakerid"])
+
+                        workingSpeech["attribution"]=speakerName
+                        
+                        if speakerName in ["Several hon. Members", "Hon. Members", "Speaker", "Mr. Speaker", "Madam Speaker", "Mr. Deputy Speaker", "Madam Deputy Speaker", "unknown"]:
+                            pass
+                        else:
+                            workingSpeech["politician"] = {}
+                            workingSpeech["politician"]["name"]=self.translator.convertUKName(str(dateH), speakerID, "Fullname")
+                            workingSpeech['politician']['riding']=self.translator.convertUKName(str(dateH), speakerID, "Riding")
+                            workingSpeech['politician']['party']=self.translator.convertUKName(str(dateH), speakerID, "Party")
+                            workingSpeech['politician']['member_id']=""
+                            workingSpeech['politician']['id']=speakerID
+                            workingSpeech["politician"]["url"] = ""
+                        
+                        # text of speech
+                        # note that using toJSON as a workaround for lxml/unicode issues (bug as of July 2013) creates problems here when more than one
+                        # "honourable friend" phrase is referenced in a given speech
+                        # xml parsing of speeches should be rewritten once this bug is addressed
+                        # for the moment, honfriend class phrase tags are simply stripped before processing
+                        
+                        gather = []
+                        speechRaw = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["p"])
+
+                        if isinstance(speechRaw, list):
+                            for speechComponentNumber in range(len(speechRaw)):
+                                try:
+                                    gather.append(speechRaw[speechComponentNumber]["$t"])
+                                except KeyError:
+                                    try:
+                                        gather.append(speechRaw[speechComponentNumber]["phrase"]["$t"])
+                                    except TypeError:
+                                        try:
+                                            gather.append(speechRaw[speechComponentNumber]['phrase'][0]["$t"])
+                                            gather.append(speechRaw[speechComponentNumber]['phrase'][1]["$t"])
+                                        except:
+                                            print ("KeyError 3")
+                                        
+                        elif isinstance(speechRaw, dict):
+                            try:
+                                gather.append(speechRaw["$t"])
+                            except KeyError:
+                                try:
+                                    gather.append(speechRaw["phrase"]["$t"])
+                                except KeyError:
+                                    print (speechRaw)
+                                    print(speechRaw.keys())
+                                
+
+                        workingSpeech["text"] = "".join(gather)
+                        workingStatements.append(copy.deepcopy(workingSpeech))
+
+                workingHansardLog["statements"] = copy.deepcopy(workingStatements)
+
+               # return workingHansardLog # for testing
+            
+                output = open((os.path.join(os.getcwd(), "data_uk", str(dateH), (str(dateH) + '.pkl'))), 'wb')
                 pickle.dump(workingHansardLog, output)
                 output.close()
                         
-        print(((str(workingFile)) + " files processed."))
         return None
         
 
@@ -438,7 +624,7 @@ class HansardImport(object):
         Returns a dict of JSON hansard file.
         '''
         try:
-            pkl_file = open((os.path.join(os.getcwd(), "data", str(dateH), trueFilename)), 'rb')
+            pkl_file = open((os.path.join(os.getcwd(), "data_uk", dateH, trueFilename)), 'rb')
             myfile = pickle.load(pkl_file)
             pkl_file.close()
             return myfile
@@ -450,7 +636,7 @@ class HansardImport(object):
         Returns list of filenames str for use in loadHansardFile
         '''
         try:
-            originalList = os.listdir((os.path.join(os.getcwd(), "data", str(dateH))))
+            originalList = os.listdir((os.path.join(os.getcwd(), "data_uk", str(dateH))))
             # Lists files in the date directory
         except OSError:
             raise HansardImportDateError("Invalid date.")

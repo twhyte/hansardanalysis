@@ -3,6 +3,7 @@
 
 # A python parser from XML to JSON
 # Cloned from https://github.com/cwandrews/toJSON
+# Modified to convert ISO-8859-1 to utf-8 on parse
 
 
 from lxml import objectify
@@ -40,8 +41,8 @@ def iterNodes(node, parentDict):
 	return parentDict
 
 def parseXML(xmlFile):
-	with open(xmlFile) as f:
-		xml = f.read()
+	with open(xmlFile, encoding='iso-8859-1') as f:
+		xml = f.read().encode('utf-8', errors='ignore')
 
 	root = objectify.fromstring(xml)
 	
