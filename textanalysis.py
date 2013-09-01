@@ -20,15 +20,15 @@ class HansardText(object):
         self.Process = hansardprocess.Processor()
         self.yearsList = ["1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", \
         "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"]
-		self.whichHansard = whichHansard
-		if self.whichHansard == "House" or "Committee":
-		
-			self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
-			self.SessionLookupTable = dict([("35", dict([("1", "0"), ("2", "1")])), ("36", dict([("1", "2"), ("2", "3")])), ("37", dict([("1", "4"), ("2", "5"), ("3", "6")])), \
-			("38", dict([("1", "7")])), ("39", dict([("1", "8"), ("2", "9")])), ("40", dict([("1", "10"), ("2", "11"), ("3", "12")])), ("41", dict([("1", "13")]))])
-			self.SessionOutputLookupTable = dict([(0, 351), (1, 352), (2, 361), (3, 362), (4, 371), (5, 372), (6, 373), (7, 381), (8, 391), (9, 392), (10, 401), (11, 402), (12, 403), (13, 411)])
+        self.whichHansard = whichHansard
+        if self.whichHansard == "House" or "Committee":
+        
+            self.parliamentsList = ["35", "36", "37", "38", "39", "40", "41"]
+            self.SessionLookupTable = dict([("35", dict([("1", "0"), ("2", "1")])), ("36", dict([("1", "2"), ("2", "3")])), ("37", dict([("1", "4"), ("2", "5"), ("3", "6")])), \
+            ("38", dict([("1", "7")])), ("39", dict([("1", "8"), ("2", "9")])), ("40", dict([("1", "10"), ("2", "11"), ("3", "12")])), ("41", dict([("1", "13")]))])
+            self.SessionOutputLookupTable = dict([(0, 351), (1, 352), (2, 361), (3, 362), (4, 371), (5, 372), (6, 373), (7, 381), (8, 391), (9, 392), (10, 401), (11, 402), (12, 403), (13, 411)])
         elif self.whichHansard == "UK":
-			self.parliamentsList = ["51", "52", "53", "54", "55"]
+            self.parliamentsList = ["51", "52", "53", "54", "55"]
 
     def findSHMStatements(self):
         '''Returns a list of all the kinds of things Members say, cleaned up

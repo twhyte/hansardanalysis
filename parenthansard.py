@@ -15,14 +15,16 @@ class Hansard(object):
     '''hansardDate = str format yyyy-mm-dd, hansardType = "House" or "Committee" or "UK"
         optional: committee = str of committee name, eg. "Agriculture", not implemented
     '''
-    def __init__(self, hansardDate, hansardType = "House", committee = ""): 
-        if hansardType == "House" or "Committee":
-			self.IOObject = hansardIO.HansardImport()
-		else:
-			self.IOObject = UKImport.HansardImport()
-		
-        self.hansardDate = hansardDate
+    def __init__(self, hansardDate, hansardType = "House", committee = ""):
+
         self.hansardType = hansardType
+
+        if self.hansardType == "House":
+            self.IOObject = hansardIO.HansardImport()
+        elif self.hansardType=="UK":
+            self.IOObject = UKImport.HansardImport()
+        
+        self.hansardDate = hansardDate
         self.committee = "" # committees not implemented!
         loadName = self.IOObject.getTrueFilenames(self.hansardDate, self.hansardType)
         loadDict = self.IOObject.loadHansardFile(self.hansardDate, loadName[0])

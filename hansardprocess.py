@@ -19,10 +19,11 @@ class ProcessorError(Exception):
         return repr(self.value)
 
 class Processor(object):
-    def __init__(self): # map of the JSON tree for use in processing
+    def __init__(self, hansardType="Canada"): # map of the JSON tree for use in processing
         self.topLevel = ["parliament", "session", "hansardDate", "hansardID"]
         self.midLevel = ["topic", "attribution", "heading", "statement"]
         self.lowLevel = ["politicianName", "memberID", "party", "riding"]
+        self.hansardType = hansardType
 
     def find(self, category, data, hansardDay, cs = "False"):
         '''Returns a list of HansardRaw objects for each instance where data (str) occurs in category (str)
@@ -172,9 +173,14 @@ class Processor(object):
         for i in range(dateStepInt+1): # Iterate and find over Hansard files
             result = []
             try:
-                hansardDay = Hansard(str(loopDate.isoformat()), "House")
+                if self.hansardType =="Canada":
+                    hansardDay = Hansard(hansardDate=str(loopDate.isoformat()), hansardType="House")
+                elif self.hansardType=="UK":
+                    hansardDay = Hansard(hansardDate=str(loopDate.isoformat()), hansardType="UK")
+                    
+                    
                 result = self.find(category, data, hansardDay, cs)
-            except (hansardIO.HansardImportDateError, IndexError): # No Hansard on this date!
+            except (hansardIO.HansardImportDateError, UKImport.HansardImportDateError, IndexError): # No Hansard on this date!
                 pass
             dateStepInt += 1
             loopDate += datetime.timedelta(days=1)
@@ -192,7 +198,10 @@ class Processor(object):
         for i in dateList: # Iterate and find over Hansard files
             result = []
             try:
-                hansardDay = Hansard(i)
+                if self.hansardType=="Canada":
+                    hansardDay = Hansard(i)
+                elif self.hansardType=="UK":
+                    hansardDay = Hansard(i, hansardType="UK")
                 result = self.find(category, data, hansardDay, cs)
             except hansardIO.HansardImportDateError: # No Hansard on this date!
                 pass

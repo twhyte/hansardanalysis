@@ -69,17 +69,17 @@ class UKTranslator (object):
 
         datesDict = {'1994':[{'51':{'2':[datetime.date(1993,11,18), datetime.date(1994,11,3)], '3':[datetime.date(1994,11,16), datetime.date(1995,11,8)]}}], \
                      '1995':[{'51':{'3':[datetime.date(1994,11,16), datetime.date(1995,11,8)], '4':[datetime.date(1995,11,15), datetime.date(1996,10,7)]}}], \
-                     '1996':[{'51':{'4':[datetime.date(1995,11,15), datetime.date(1996,10,7)], '5':[datetime.date(1996,10,23), datetime.date(1997,3,21)]}}], \
-                     '1997':[{'51':{'5':[datetime.date(1996,10,23), datetime.date(1997,3,21)]}}, {'52':{'1':[datetime.date(1997,5,14), datetime.date(1998,11,19)]}}], \
-                     '1998':[{'52':{'1':[datetime.date(1997,5,14), datetime.date(1998,11,19)], '2':[datetime.date(1998,11,24), datetime.date(1999,11,11)]}}], \
-                     '1999':[{'52':{'2':[datetime.date(1998,11,24), datetime.date(1999,11,11)], '3':[datetime.date(1999,11,24), datetime.date(2000,11,30)]}}], \
-                     '2000':[{'52':{'3':[datetime.date(1999,11,24), datetime.date(2000,11,30)], '4':[datetime.date(2000,12,6), datetime.date(2001,5,3)]}}], \
-                     '2001':[{'52':{'4':[datetime.date(2000,12,6), datetime.date(2001,5,3)]}}, {'53':{'1':[datetime.date(2001,6,20), datetime.date(2002,11,7)]}}], \
-                     '2002':[{'53':{'1':[datetime.date(2001,6,20), datetime.date(2002,11,7)], '2':[datetime.date(2002,11,13), datetime.date(2003,11,20)]}}], \
+                     '1996':[{'51':{'4':[datetime.date(1995,11,15), datetime.date(1996,10,7)], '5':[datetime.date(1996,10,14), datetime.date(1997,3,21)]}}], \
+                     '1997':[{'51':{'5':[datetime.date(1996,10,23), datetime.date(1997,3,21)]}}, {'52':{'1':[datetime.date(1997,5,1), datetime.date(1998,11,19)]}}], \
+                     '1998':[{'52':{'1':[datetime.date(1997,5,1), datetime.date(1998,11,19)], '2':[datetime.date(1998,11,24), datetime.date(1999,11,11)]}}], \
+                     '1999':[{'52':{'2':[datetime.date(1998,11,24), datetime.date(1999,11,11)], '3':[datetime.date(1999,11,17), datetime.date(2000,11,30)]}}], \
+                     '2000':[{'52':{'3':[datetime.date(1999,11,17), datetime.date(2000,11,30)], '4':[datetime.date(2000,12,6), datetime.date(2001,5,11)]}}], \
+                     '2001':[{'52':{'4':[datetime.date(2000,12,6), datetime.date(2001,5,11)]}}, {'53':{'1':[datetime.date(2001,6,13), datetime.date(2002,11,7)]}}], \
+                     '2002':[{'53':{'1':[datetime.date(2001,6,13), datetime.date(2002,11,7)], '2':[datetime.date(2002,11,13), datetime.date(2003,11,20)]}}], \
                      '2003':[{'53':{'2':[datetime.date(2002,11,13), datetime.date(2003,11,20)], '3':[datetime.date(2003,11,26), datetime.date(2004,11,18)]}}], \
-                     '2004':[{'53':{'3':[datetime.date(2003,11,26), datetime.date(2004,11,18)], '4':[datetime.date(2004,11,23), datetime.date(2005,5,7)]}}], \
-                     '2005':[{'53':{'4':[datetime.date(2004,11,23), datetime.date(2005,5,7)]}}, {'54':{'1':[datetime.date(2005,5,17), datetime.date(2006,11,8)]}}], \
-                     '2006':[{'54':{'1':[datetime.date(2005,5,17), datetime.date(2006,11,8)], '2':[datetime.date(2006,11,15), datetime.date(2007,10,30)]}}], \
+                     '2004':[{'53':{'3':[datetime.date(2003,11,26), datetime.date(2004,11,18)], '4':[datetime.date(2004,11,23), datetime.date(2005,4,7)]}}], \
+                     '2005':[{'53':{'4':[datetime.date(2004,11,23), datetime.date(2005,4,7)]}}, {'54':{'1':[datetime.date(2005,5,11), datetime.date(2006,11,8)]}}], \
+                     '2006':[{'54':{'1':[datetime.date(2005,5,11), datetime.date(2006,11,8)], '2':[datetime.date(2006,11,15), datetime.date(2007,10,30)]}}], \
                      '2007':[{'54':{'2':[datetime.date(2006,11,15), datetime.date(2007,10,30)], '3':[datetime.date(2007,11,6), datetime.date(2008,11,26)]}}], \
                      '2008':[{'54':{'3':[datetime.date(2007,11,6), datetime.date(2008,11,26)], '4':[datetime.date(2008,12,3), datetime.date(2009,11,12)]}}], \
                      '2009':[{'54':{'4':[datetime.date(2008,12,3), datetime.date(2009,11,12)], '5':[datetime.date(2009,11,18), datetime.date(2010,4,12)]}}], \
@@ -140,9 +140,38 @@ class UKTranslator (object):
   
         # "parliamentData" is a placeholder for anything else that needs to be added in future
 
+        #names2010 dict--unfortunately, there are two allmembers files!!!
+        names2010Dict = {}
+        
+        try:
+            f = "all-members-2010.xml"
+            j = parseXML(f)
+            k = json.loads(j)
+                
+        except:
+            raise HansardImportError("No all-members-2010.xml file present.")
+
+        working=k["publicwhip"]["member"]
+        print(len(working))
+
+        for member in working:
+            endDate = member["todate"]
+            endDateObject = datetime.date(2013, 1, 1)
+            firstName = member["firstname"]
+            lastName = member["lastname"]
+            fullName = firstName + " " + lastName
+            riding = member["constituency"]
+            memberID = member["id"]
+            party = member["party"]
+            startDate = member["fromdate"]
+            ridingDict = {"fullName":fullName, "firstName":firstName, "memberID": memberID, "lastName":lastName, "riding":riding, "party":party, "startDate":startDate, "endDate":endDate}
+            print ("Added" + " " + memberID)
+            names2010Dict[memberID] = [{riding:copy.deepcopy(ridingDict)}]
+        
+
         # now we write the translation file
 
-        final = {"names":(copy.deepcopy(namesDict)), "dates":(copy.deepcopy(datesDict))}
+        final = {"names":(copy.deepcopy(namesDict)), "dates":(copy.deepcopy(datesDict)), "names2010":(copy.deepcopy(names2010Dict))}
         output = open(('UKTranslationData.pkl'), 'wb')
         pickle.dump(final, output)
         
@@ -227,9 +256,19 @@ class UKTranslator (object):
 
         if memberID == "unknown":
             return "unknown"
-
+        if memberID =="uk.org.publicwhip/royal/-1": #The Queen!
+            if parrid == "Party":
+                return ""
+            elif parrid == "Riding":
+                return ""
+            elif parrid == "Fullname":
+                return "The Queen"
+            
         if parrid == "Party":
-            workingNameDict = TransFile['names']
+            if memberID[25]=="4" and len(memberID)==30: ##it's a post-2010 instance
+                workingNameDict = TransFile['names2010']
+            else:
+                workingNameDict = TransFile['names']
             try:
                 memberInfo = workingNameDict[memberID]
                 if len(memberInfo) == 1: # only one person with this ID; return their info
@@ -244,10 +283,13 @@ class UKTranslator (object):
                             return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["party"]
                         
             except KeyError:
-                    raise HansardImportError("Invalid--ID Doesn't Exist in UK Names")
+                raise HansardImportError("Invalid--ID Doesn't Exist in UK Names")
 			
         elif parrid == "Riding":
-            workingNameDict = TransFile['names']
+            if memberID[25]=="4" and len(memberID)==30: #it's a post-2010 instance
+                workingNameDict = TransFile['names2010']
+            else:
+                workingNameDict = TransFile['names']
             try:
                 memberInfo = workingNameDict[memberID]
                 if len(memberInfo) == 1: # only one person with this name; return their info
@@ -261,10 +303,13 @@ class UKTranslator (object):
                             return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["riding"]
                         
             except KeyError:
-                    raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+                raise HansardImportError("Invalid--ID Doesn't Exist in UK Names")
 			
         elif parrid == "Fullname":
-            workingNameDict = TransFile['names']
+            if memberID[25]=="4" and len(memberID)==30: #it's a post-2010 instance
+                workingNameDict = TransFile['names2010']
+            else:
+                workingNameDict = TransFile['names']
             try:
                 memberInfo = workingNameDict[memberID]
                 if len(memberInfo) == 1: # only one person with this name; return their info
@@ -278,7 +323,7 @@ class UKTranslator (object):
                             return memberInfo[personInstance][(list(memberInfo[personInstance].keys())[0])]["fullName"]
 
             except KeyError:
-                    raise HansardImportError("Invalid--Name Doesn't Exist in UK Names")
+                raise HansardImportError("Invalid--ID Doesn't Exist in UK Names")
         else:
             raise HansardImportError("Invalid--Choose Party or Riding or Fullname")
 
@@ -473,7 +518,8 @@ class HansardImport(object):
                         lines[0] = '<?xml version="1.0"?>\n'
                         stripHolder = []
                         for q in lines:
-                            r = q.replace("<i>", "") # strips italics tags
+                            n = q.replace("</i >", "")
+                            r = n.replace("<i>", "") # strips italics tags
                             s = r.replace("</i>", "")
                             t = self.strip_friend(s)
                             u = self.strip_date(t) # strips bad class phrases
@@ -505,15 +551,31 @@ class HansardImport(object):
                 workingHansardLog["original_url"] = ""
 
                 workingStatements = []
-                
+
+                if k["publicwhip"]["latest"]=="ignore": # some procedural recordings in the data (eg. swearing in of a new government) must be handled here with a manual flag
+                    workingSpeech = {}
+                    workingSpeech["time"] = ""
+                    workingSpeech["heading"]= ""
+                    workingSpeech["topic"]= ""
+                    workingSpeech["url"]=""
+                    workingSpeech["attribution"]=""
+                    workingSpeech["text"]=""
+                    workingStatements=[workingSpeech]
+                    workingHansardLog["statements"] = copy.deepcopy(workingStatements)
+                    output = open((os.path.join(os.getcwd(), "data_uk", str(dateH), (str(dateH) + '.pkl'))), 'wb')
+                    pickle.dump(workingHansardLog, output)
+                    output.close() # writes a dummy file
+                    return None
+                    
+                    
+            
                 for speechNumber in range(len(k["publicwhip"]["speech"])):
                     workingSpeech = {}
-
+ 
                     if "nospeaker" in list(k["publicwhip"]["speech"][speechNumber].keys()) or "speakername" not in list(k["publicwhip"]["speech"][speechNumber].keys()):
                         pass
                     
                     else:
-                
                         speechTime = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["time"])
                         workingSpeech["time"] = speechTime
                         workingSpeech["heading"]= ""
@@ -547,7 +609,10 @@ class HansardImport(object):
                         # for the moment, honfriend class phrase tags are simply stripped before processing
                         
                         gather = []
-                        speechRaw = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["p"])
+                        try:
+                            speechRaw = copy.deepcopy(k["publicwhip"]["speech"][speechNumber]["p"])
+                        except KeyError:
+                            print (k["publicwhip"]["speech"][speechNumber])
 
                         if isinstance(speechRaw, list):
                             for speechComponentNumber in range(len(speechRaw)):
@@ -562,6 +627,9 @@ class HansardImport(object):
                                             gather.append(speechRaw[speechComponentNumber]['phrase'][1]["$t"])
                                         except:
                                             print ("KeyError 3")
+                                    except KeyError:
+                                        print (speechRaw[speechComponentNumber])
+                                        print("KeyError4")
                                         
                         elif isinstance(speechRaw, dict):
                             try:
