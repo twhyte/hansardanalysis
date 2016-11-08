@@ -1,7 +1,7 @@
 hansardanalysis
 ===============
 
-Python scripts for Hansard processing
+Python scripts for scraping and processing openparliament.
 These are old, inefficient and shouldn't be used.
 
 Requires Python 3.2, BeautifulSoup4
